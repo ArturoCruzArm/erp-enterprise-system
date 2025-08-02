@@ -1,7 +1,8 @@
-version: '3.8'
 
 services:
-  # Bases de datos
+  # ======================
+  # DATABASES & STORAGE
+  # ======================
   postgres:
     image: postgres:15
     container_name: erp-postgres
@@ -16,6 +17,11 @@ services:
       - ./infrastructure/database/init:/docker-entrypoint-initdb.d
     networks:
       - erp-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erp_user -d erp_main"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   redis:
     image: redis:7-alpine
@@ -24,8 +30,121 @@ services:
       - "6379:6379"
     networks:
       - erp-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # Monitoreo
+  # Neo4j for Digital Twins Graph Database
+  neo4j:
+    image: neo4j:5.15
+    container_name: erp-neo4j
+    environment:
+      NEO4J_AUTH: neo4j/neo4jpassword
+      NEO4J_PLUGINS: '["apoc"]'
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+    networks:
+      - erp-network
+
+  # InfluxDB for Time Series (IoT/Edge Computing)
+  influxdb:
+    image: influxdb:2.7
+    container_name: erp-influxdb
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin
+      DOCKER_INFLUXDB_INIT_PASSWORD: adminpassword
+      DOCKER_INFLUXDB_INIT_ORG: erp-organization
+      DOCKER_INFLUXDB_INIT_BUCKET: sensor-data
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    networks:
+      - erp-network
+
+  # ======================
+  # MESSAGE BROKERS
+  # ======================
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: erp-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - erp-network
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: erp-kafka
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    networks:
+      - erp-network
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # MQTT Broker for IoT/Edge Computing
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: erp-mosquitto
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_logs:/mosquitto/log
+    networks:
+      - erp-network
+
+  # ======================
+  # SEARCH & ANALYTICS
+  # ======================
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: erp-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - erp-network
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: erp-kibana
+    environment:
+      ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - erp-network
+
+  # ======================
+  # MONITORING & OBSERVABILITY
+  # ======================
   prometheus:
     image: prom/prometheus:latest
     container_name: erp-prometheus
@@ -33,6 +152,13 @@ services:
       - "9090:9090"
     volumes:
       - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
     networks:
       - erp-network
 
@@ -43,39 +169,63 @@ services:
       - "3001:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./infrastructure/monitoring/grafana-dashboards.json:/var/lib/grafana/dashboards/erp-dashboard.json
     networks:
       - erp-network
 
-  # Message Broker
-  kafka:
-    image: confluentinc/cp-kafka:latest
-    container_name: erp-kafka
-    environment:
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+  # Jaeger for Distributed Tracing
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: erp-jaeger
     ports:
-      - "9092:9092"
-    depends_on:
-      - zookeeper
+      - "16686:16686"
+      - "14268:14268"
+    environment:
+      COLLECTOR_OTLP_ENABLED: true
     networks:
       - erp-network
 
-  zookeeper:
-    image: confluentinc/cp-zookeeper:latest
-    container_name: erp-zookeeper
+  # ======================
+  # DEVELOPMENT TOOLS
+  # ======================
+  # Adminer for Database Management
+  adminer:
+    image: adminer
+    container_name: erp-adminer
+    ports:
+      - "8080:8080"
+    networks:
+      - erp-network
+
+  # Redis Commander for Redis Management
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: erp-redis-commander
     environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
     networks:
       - erp-network
 
 volumes:
   postgres_data:
   grafana_data:
+  neo4j_data:
+  influxdb_data:
+  prometheus_data:
+  elasticsearch_data:
+  mosquitto_data:
+  mosquitto_logs:
 
 networks:
   erp-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

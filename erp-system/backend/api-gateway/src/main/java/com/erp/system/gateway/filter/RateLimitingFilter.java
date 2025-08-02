@@ -4,7 +4,8 @@ import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.Bucket4j;
 import io.github.bucket4j.Refill;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -17,11 +18,10 @@ import reactor.core.publisher.Mono;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
-@Slf4j
 @Component
 public class RateLimitingFilter implements GlobalFilter, Ordered {
-
+    
+    private static final Logger log = LoggerFactory.getLogger(RateLimitingFilter.class);
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
     
     // 100 requests per minute per IP

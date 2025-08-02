@@ -1,10 +1,7 @@
 package com.erp.system.notification;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -16,9 +13,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class NotificationService {
-    
-    private final KafkaTemplate<String, Object> kafkaTemplate;
-    private final ObjectMapper objectMapper;
     
     private static final String NOTIFICATION_TOPIC = "notifications";
     
@@ -41,8 +35,8 @@ public class NotificationService {
                     .actionUrl(request.getActionUrl())
                     .build();
             
-            kafkaTemplate.send(NOTIFICATION_TOPIC, message.getId(), message);
-            log.info("Notification sent: {} to user: {}", message.getType(), message.getUserId());
+            // TODO: Implement Kafka sending when infrastructure is ready
+            log.info("Notification prepared: {} for user: {}", message.getType(), message.getUserId());
             
         } catch (Exception e) {
             log.error("Error sending notification", e);
