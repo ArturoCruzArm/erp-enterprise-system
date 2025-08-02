@@ -1,0 +1,96 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: erp-config
+  namespace: erp-system
+data:
+  # Database Configuration
+  DB_HOST: "postgres-service"
+  DB_PORT: "5432"
+  DB_NAME: "erp_main"
+  DB_USER: "erp_user"
+  
+  # Redis Configuration
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  
+  # Kafka Configuration
+  KAFKA_BOOTSTRAP_SERVERS: "kafka-service:9092"
+  
+  # Service Discovery
+  EUREKA_URL: "http://eureka-service:8761/eureka/"
+  
+  # API Gateway
+  API_GATEWAY_URL: "http://api-gateway-service:8080"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: erp-system
+data:
+  POSTGRES_DB: "erp_main"
+  POSTGRES_USER: "erp_user"
+  PGDATA: "/var/lib/postgresql/data/pgdata"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: monitoring-config
+  namespace: erp-system
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    rule_files:
+      # - "first_rules.yml"
+      # - "second_rules.yml"
+
+    scrape_configs:
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+
+      - job_name: 'api-gateway'
+        static_configs:
+          - targets: ['api-gateway-service:8080']
+        metrics_path: '/actuator/prometheus'
+
+      - job_name: 'user-service'
+        static_configs:
+          - targets: ['user-service:8081']
+        metrics_path: '/actuator/prometheus'
+
+      - job_name: 'finance-service'
+        static_configs:
+          - targets: ['finance-service:8082']
+        metrics_path: '/actuator/prometheus'
+
+      - job_name: 'inventory-service'
+        static_configs:
+          - targets: ['inventory-service:8083']
+        metrics_path: '/actuator/prometheus'
+
+      - job_name: 'purchase-service'
+        static_configs:
+          - targets: ['purchase-service:8084']
+        metrics_path: '/actuator/prometheus'
+
+      - job_name: 'sales-service'
+        static_configs:
+          - targets: ['sales-service:8085']
+        metrics_path: '/actuator/prometheus'
+
+      - job_name: 'hr-service'
+        static_configs:
+          - targets: ['hr-service:8086']
+        metrics_path: '/actuator/prometheus'
+
+      - job_name: 'production-service'
+        static_configs:
+          - targets: ['production-service:8087']
+        metrics_path: '/actuator/prometheus'

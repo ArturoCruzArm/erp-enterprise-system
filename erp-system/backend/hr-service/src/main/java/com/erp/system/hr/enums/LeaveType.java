@@ -1,0 +1,14 @@
+package com.erp.system.hr.enums;
+
+public enum LeaveType {
+    ANNUAL_LEAVE,
+    SICK_LEAVE,
+    MATERNITY_LEAVE,
+    PATERNITY_LEAVE,
+    EMERGENCY_LEAVE,
+    STUDY_LEAVE,
+    UNPAID_LEAVE,
+    COMPENSATORY_LEAVE,
+    BEREAVEMENT_LEAVE,
+    PERSONAL_LEAVE
+}

@@ -1,0 +1,392 @@
+# Quantum Computing Service Configuration
+server:
+  port: 8096
+  servlet:
+    context-path: /api/v1
+
+spring:
+  application:
+    name: quantum-computing-service
+  
+  # Database Configuration
+  datasource:
+    url: jdbc:postgresql://localhost:5432/erp_quantum_db
+    username: ${DB_USERNAME:erp_user}
+    password: ${DB_PASSWORD:erp_password}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      maximum-pool-size: 15
+      minimum-idle: 3
+      pool-name: QuantumComputingHikariCP
+  
+  # JPA Configuration
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 20
+          order_inserts: true
+          order_updates: true
+        cache:
+          use_second_level_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+  
+  # Redis Configuration
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    timeout: 2000ms
+    jedis:
+      pool:
+        max-active: 15
+        max-idle: 8
+        min-idle: 2
+        max-wait: 2000ms
+  
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      batch-size: 16384
+      linger-ms: 5
+      buffer-memory: 33554432
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      group-id: quantum-computing-service
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      properties:
+        spring.json.trusted.packages: "com.erp.system.quantum.entity,com.erp.system.quantum.dto"
+  
+  # Security Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI:http://localhost:8081/auth/realms/erp}
+          jwk-set-uri: ${JWT_JWK_SET_URI:http://localhost:8081/auth/realms/erp/protocol/openid-connect/certs}
+
+# Eureka Configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+
+# Management and Monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+  tracing:
+    sampling:
+      probability: 1.0
+
+# Quantum Computing Configuration
+quantum:
+  computing:
+    # Quantum Backends
+    backends:
+      # Quantum Simulators
+      simulator:
+        enabled: true
+        type: "QUANTUM_SIMULATOR"
+        provider: "LOCAL"
+        max-qubits: 32
+        noise-model: false
+        shots-limit: 100000
+        queue-limit: 100
+      
+      # IBM Quantum (requires API credentials)
+      ibm-quantum:
+        enabled: ${IBM_QUANTUM_ENABLED:false}
+        provider: "IBM"
+        api-token: ${IBM_QUANTUM_TOKEN:}
+        hub: ${IBM_QUANTUM_HUB:}
+        group: ${IBM_QUANTUM_GROUP:}
+        project: ${IBM_QUANTUM_PROJECT:}
+        backend-names: ["ibmq_qasm_simulator", "ibm_brisbane", "ibm_kyoto"]
+        max-shots: 8192
+        timeout: 300s
+      
+      # Google Quantum AI (requires credentials)
+      google-quantum:
+        enabled: ${GOOGLE_QUANTUM_ENABLED:false}
+        provider: "GOOGLE"
+        project-id: ${GOOGLE_QUANTUM_PROJECT:}
+        processor-id: ${GOOGLE_QUANTUM_PROCESSOR:}
+        credentials-path: ${GOOGLE_QUANTUM_CREDENTIALS:}
+        max-shots: 10000
+        timeout: 600s
+      
+      # Amazon Braket (requires AWS credentials)
+      aws-braket:
+        enabled: ${AWS_BRAKET_ENABLED:false}
+        provider: "AWS"
+        region: ${AWS_REGION:us-east-1}
+        s3-bucket: ${AWS_BRAKET_S3_BUCKET:}
+        device-arns:
+          simulator: "arn:aws:braket:::device/quantum-simulator/amazon/sv1"
+          rigetti: "arn:aws:braket:us-west-1::device/qpu/rigetti/Ankaa-2"
+          ionq: "arn:aws:braket:us-east-1::device/qpu/ionq/Harmony"
+        max-shots: 100000
+        timeout: 1800s
+    
+    # Quantum Algorithms
+    algorithms:
+      qaoa:
+        enabled: true
+        max-layers: 10
+        default-layers: 2
+        optimizer: "COBYLA"
+        max-iterations: 1000
+        convergence-threshold: 1e-6
+        parameter-bounds: [-pi, pi]
+      
+      vqe:
+        enabled: true
+        ansatz-types: ["RealAmplitudes", "EfficientSU2", "TwoLocal"]
+        default-ansatz: "RealAmplitudes"
+        optimizer: "SPSA"
+        max-iterations: 500
+        convergence-threshold: 1e-8
+        shot-budget: 10000
+      
+      quantum-annealing:
+        enabled: true
+        annealing-time: 20
+        num-reads: 1000
+        chain-strength: 1.0
+        auto-scale: true
+        embedding-timeout: 1000
+      
+      grover:
+        enabled: true
+        max-qubits: 20
+        amplification-factor: 1.5
+        diffusion-operator: "standard"
+      
+      shor:
+        enabled: false # Requires significant quantum resources
+        max-number-bits: 15
+        period-finding-attempts: 10
+    
+    # Optimization Problems
+    optimization:
+      supply-chain:
+        enabled: true
+        max-suppliers: 50
+        max-facilities: 20
+        max-customers: 100
+        algorithms: ["QAOA", "QUANTUM_ANNEALING"]
+        default-algorithm: "QAOA"
+      
+      portfolio:
+        enabled: true
+        max-assets: 30
+        risk-models: ["MARKOWITZ", "BLACK_LITTERMAN", "FACTOR_MODEL"]
+        algorithms: ["VQE", "QAOA"]
+        default-algorithm: "VQE"
+      
+      vehicle-routing:
+        enabled: true
+        max-vehicles: 10
+        max-customers: 50
+        algorithms: ["QUANTUM_ANNEALING", "QAOA"]
+        default-algorithm: "QUANTUM_ANNEALING"
+      
+      production-scheduling:
+        enabled: true
+        max-jobs: 100
+        max-machines: 20
+        hybrid-approach: true
+        algorithms: ["QAOA", "VQE"]
+        default-algorithm: "QAOA"
+      
+      financial-risk:
+        enabled: true
+        risk-metrics: ["VAR", "CVAR", "EXPECTED_SHORTFALL"]
+        confidence-levels: [0.95, 0.99, 0.999]
+        time-horizons: [1, 7, 30, 252]
+        algorithms: ["VQE", "AMPLITUDE_ESTIMATION"]
+        default-algorithm: "VQE"
+    
+    # Performance and Resource Management
+    performance:
+      # Job Queue Management
+      job-queue:
+        max-concurrent-jobs: 5
+        max-queue-size: 100
+        priority-levels: 4
+        timeout-seconds: 3600
+        cleanup-interval: 300s
+      
+      # Resource Allocation
+      resources:
+        max-memory-gb: 8
+        max-cpu-cores: 4
+        circuit-cache-size: 1000
+        result-cache-ttl: 3600s
+        temporary-file-cleanup: true
+      
+      # Circuit Optimization
+      circuit-optimization:
+        enabled: true
+        transpilation-level: 2
+        gate-optimization: true
+        depth-optimization: true
+        noise-adaptive: true
+        backend-specific: true
+      
+      # Error Mitigation
+      error-mitigation:
+        enabled: true
+        techniques: ["ZERO_NOISE_EXTRAPOLATION", "READOUT_ERROR_MITIGATION"]
+        calibration-frequency: 3600s
+        measurement-error-correction: true
+    
+    # Cost Management
+    cost-management:
+      enabled: true
+      budget-limits:
+        daily-budget: 1000.0
+        monthly-budget: 20000.0
+        currency: "USD"
+      
+      cost-tracking:
+        track-by-user: true
+        track-by-project: true
+        track-by-algorithm: true
+        alert-thresholds: [500.0, 750.0, 900.0]
+      
+      cost-optimization:
+        prefer-simulators: true
+        batch-similar-jobs: true
+        use-free-backends: true
+        circuit-optimization: true
+    
+    # Security and Compliance
+    security:
+      encryption:
+        enabled: true
+        algorithm: "AES-256-GCM"
+        key-rotation-days: 90
+      
+      access-control:
+        role-based: true
+        algorithm-restrictions: true
+        backend-restrictions: true
+        quota-management: true
+      
+      audit:
+        enabled: true
+        log-all-jobs: true
+        log-results: true
+        retention-days: 365
+      
+      compliance:
+        gdpr-compliant: true
+        hipaa-ready: false
+        data-residency: "EU"
+        export-controls: true
+
+# Integration Configuration
+integration:
+  analytics-service:
+    url: ${ANALYTICS_SERVICE_URL:http://analytics-service:8088}
+    timeout: 60s
+  
+  digital-twin-service:
+    url: ${DIGITAL_TWIN_SERVICE_URL:http://digital-twin-service:8095}
+    timeout: 30s
+  
+  production-service:
+    url: ${PRODUCTION_SERVICE_URL:http://production-service:8087}
+    timeout: 30s
+  
+  finance-service:
+    url: ${FINANCE_SERVICE_URL:http://finance-service:8082}
+    timeout: 30s
+
+# Apache Spark Configuration (for classical pre/post-processing)
+spark:
+  app-name: quantum-computing-preprocessing
+  master: ${SPARK_MASTER:local[*]}
+  sql:
+    warehouse:
+      dir: ${SPARK_WAREHOUSE_DIR:/tmp/spark-warehouse}
+  serializer: org.apache.spark.serializer.KryoSerializer
+  driver:
+    memory: 1g
+    max-result-size: 512m
+  executor:
+    memory: 1g
+    cores: 1
+
+# Logging Configuration
+logging:
+  level:
+    com.erp.system.quantum: DEBUG
+    org.springframework.kafka: INFO
+    org.apache.spark: WARN
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{correlationId}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{correlationId}] %logger{36} - %msg%n"
+  file:
+    name: logs/quantum-computing-service.log
+    max-size: 100MB
+    max-history: 30
+
+# Custom Properties
+app:
+  security:
+    jwt:
+      secret: ${JWT_SECRET:mySecretKey}
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001}
+  
+  notification:
+    webhook:
+      enabled: true
+      url: ${WEBHOOK_URL:http://localhost:8092/webhooks/quantum-alerts}
+    
+    email:
+      enabled: true
+      smtp-host: ${SMTP_HOST:smtp.gmail.com}
+      smtp-port: ${SMTP_PORT:587}
+      username: ${SMTP_USERNAME:}
+      password: ${SMTP_PASSWORD:}
+      from-address: ${EMAIL_FROM:quantum@erp-system.com}

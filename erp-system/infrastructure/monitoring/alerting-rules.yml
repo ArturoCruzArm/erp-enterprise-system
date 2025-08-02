@@ -1,0 +1,147 @@
+groups:
+  - name: erp-system-alerts
+    rules:
+      # Service Health Alerts
+      - alert: ServiceDown
+        expr: up{job=~".*-service"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "Service {{ $labels.job }} has been down for more than 5 minutes."
+          runbook_url: "https://wiki.company.com/runbooks/service-down"
+
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) by (service)
+            /
+            sum(rate(http_server_requests_seconds_count[5m])) by (service)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          team: development
+        annotations:
+          summary: "High error rate detected for {{ $labels.service }}"
+          description: "Error rate for {{ $labels.service }} is {{ $value | humanizePercentage }}"
+
+      - alert: HighResponseTime
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(http_server_requests_seconds_bucket[5m])) by (le, service)
+          ) > 2
+        for: 10m
+        labels:
+          severity: warning
+          team: development
+        annotations:
+          summary: "High response time for {{ $labels.service }}"
+          description: "95th percentile response time for {{ $labels.service }} is {{ $value }}s"
+
+      # Infrastructure Alerts
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            jvm_memory_used_bytes{area="heap"}
+            /
+            jvm_memory_max_bytes{area="heap"}
+          ) > 0.85
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High memory usage for {{ $labels.service }}"
+          description: "Memory usage for {{ $labels.service }} is {{ $value | humanizePercentage }}"
+
+      - alert: HighCPUUsage
+        expr: |
+          rate(process_cpu_seconds_total[5m]) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High CPU usage for {{ $labels.service }}"
+          description: "CPU usage for {{ $labels.service }} is {{ $value }}%"
+
+      - alert: DatabaseConnectionPoolExhaustion
+        expr: |
+          hikaricp_connections_active / hikaricp_connections_max > 0.9
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Database connection pool near exhaustion for {{ $labels.service }}"
+          description: "Connection pool usage for {{ $labels.service }} is {{ $value | humanizePercentage }}"
+
+      # Business Logic Alerts
+      - alert: HighFailedLogins
+        expr: |
+          sum(rate(failed_login_attempts_total[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "High number of failed login attempts"
+          description: "Failed login rate is {{ $value }} attempts per second"
+
+      - alert: PaymentProcessingFailures
+        expr: |
+          sum(rate(payment_failures_total[5m])) > 1
+        for: 2m
+        labels:
+          severity: critical
+          team: finance
+        annotations:
+          summary: "Payment processing failures detected"
+          description: "Payment failure rate is {{ $value }} failures per second"
+
+      - alert: LowInventoryStock
+        expr: |
+          inventory_stock_level < inventory_minimum_threshold
+        for: 1m
+        labels:
+          severity: warning
+          team: operations
+        annotations:
+          summary: "Low inventory stock for {{ $labels.product_id }}"
+          description: "Stock level for {{ $labels.product_name }} is {{ $value }} units"
+
+  - name: erp-system-sla
+    rules:
+      # SLA Monitoring
+      - alert: SLAViolation
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{status!~"5.."}[30d]))
+            /
+            sum(rate(http_server_requests_seconds_count[30d]))
+          ) < 0.995
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "SLA violation - availability below 99.5%"
+          description: "30-day availability is {{ $value | humanizePercentage }}"
+
+      - alert: SLAWarning
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{status!~"5.."}[7d]))
+            /
+            sum(rate(http_server_requests_seconds_count[7d]))
+          ) < 0.997
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "SLA warning - availability trending down"
+          description: "7-day availability is {{ $value | humanizePercentage }}"

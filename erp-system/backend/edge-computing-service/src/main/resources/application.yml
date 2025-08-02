@@ -1,0 +1,264 @@
+# Edge Computing Service Configuration
+server:
+  port: 8094
+  servlet:
+    context-path: /api/v1
+
+spring:
+  application:
+    name: edge-computing-service
+  
+  # Database Configuration
+  datasource:
+    url: jdbc:postgresql://localhost:5432/erp_edge_db
+    username: ${DB_USERNAME:erp_user}
+    password: ${DB_PASSWORD:erp_password}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      maximum-pool-size: 20
+      minimum-idle: 5
+      pool-name: EdgeComputingHikariCP
+  
+  # JPA Configuration
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 20
+          order_inserts: true
+          order_updates: true
+        cache:
+          use_second_level_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+  
+  # Redis Configuration
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    timeout: 2000ms
+    jedis:
+      pool:
+        max-active: 20
+        max-idle: 10
+        min-idle: 2
+        max-wait: 2000ms
+  
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      batch-size: 16384
+      linger-ms: 5
+      buffer-memory: 33554432
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      group-id: edge-computing-service
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      properties:
+        spring.json.trusted.packages: "com.erp.system.edge.entity,com.erp.system.edge.dto"
+    streams:
+      application-id: edge-analytics-streams
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+      properties:
+        processing.guarantee: exactly_once_v2
+        topology.optimization: all
+  
+  # Security Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI:http://localhost:8081/auth/realms/erp}
+          jwk-set-uri: ${JWT_JWK_SET_URI:http://localhost:8081/auth/realms/erp/protocol/openid-connect/certs}
+
+# Eureka Configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+
+# Management and Monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+  tracing:
+    sampling:
+      probability: 1.0
+
+# MQTT Configuration
+mqtt:
+  broker:
+    url: ${MQTT_BROKER_URL:tcp://localhost:1883}
+  client:
+    id: ${MQTT_CLIENT_ID:erp-edge-gateway-${random.uuid}}
+  username: ${MQTT_USERNAME:}
+  password: ${MQTT_PASSWORD:}
+  qos: 1
+  keep-alive: 60
+  connection-timeout: 30
+  topics:
+    device-data: devices/+/data
+    device-status: devices/+/status
+    device-alerts: devices/+/alerts
+    device-heartbeat: devices/+/heartbeat
+
+# CoAP Configuration
+coap:
+  server:
+    port: 5683
+    max-message-size: 1024
+  client:
+    timeout: 5000
+    retries: 3
+
+# InfluxDB Configuration (Time Series Database)
+influxdb:
+  url: ${INFLUXDB_URL:http://localhost:8086}
+  token: ${INFLUXDB_TOKEN:}
+  org: ${INFLUXDB_ORG:erp-organization}
+  bucket: ${INFLUXDB_BUCKET:sensor-data}
+  retention: 30d
+
+# Edge Computing Configuration
+edge:
+  computing:
+    # Stream Processing
+    stream:
+      processing:
+        enabled: true
+        window-size: 10s
+        parallelism: 4
+        checkpointing-interval: 1000
+    
+    # Analytics Configuration
+    analytics:
+      enabled: true
+      anomaly-detection:
+        enabled: true
+        threshold: 0.8
+        window-size: 100
+      predictive-maintenance:
+        enabled: true
+        prediction-horizon: 7d
+        model-refresh-interval: 1h
+    
+    # Device Management
+    device:
+      heartbeat-timeout: 5m
+      offline-threshold: 10m
+      maintenance-check-interval: 1h
+      configuration-sync-interval: 15m
+    
+    # Data Retention
+    data:
+      retention:
+        raw-data: 30d
+        aggregated-data: 365d
+        alerts: 90d
+        device-logs: 30d
+      
+      # Batch Processing
+      batch:
+        enabled: true
+        size: 1000
+        timeout: 30s
+        parallel-workers: 4
+    
+    # ML Models
+    ml:
+      models:
+        anomaly-detection:
+          type: isolation-forest
+          retrain-interval: 24h
+          min-samples: 1000
+        predictive-maintenance:
+          type: random-forest
+          retrain-interval: 168h
+          features: [temperature, vibration, pressure, usage_hours]
+    
+    # Performance Tuning
+    performance:
+      cache:
+        device-metrics-ttl: 5m
+        analytics-cache-ttl: 1m
+        prediction-cache-ttl: 30m
+      
+      thread-pools:
+        data-processing: 10
+        analytics: 5
+        communication: 8
+      
+      rate-limiting:
+        device-messages: 1000/min
+        api-requests: 100/min
+
+# Logging Configuration
+logging:
+  level:
+    com.erp.system.edge: DEBUG
+    org.springframework.kafka: INFO
+    org.eclipse.paho: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{correlationId}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{correlationId}] %logger{36} - %msg%n"
+  file:
+    name: logs/edge-computing-service.log
+    max-size: 100MB
+    max-history: 30
+
+# Custom Properties
+app:
+  security:
+    jwt:
+      secret: ${JWT_SECRET:mySecretKey}
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001}
+  
+  notification:
+    webhook:
+      enabled: true
+      url: ${WEBHOOK_URL:http://localhost:8092/webhooks/alerts}
+    
+  integration:
+    production-service:
+      url: ${PRODUCTION_SERVICE_URL:http://production-service:8087}
+    inventory-service:
+      url: ${INVENTORY_SERVICE_URL:http://inventory-service:8083}
+    analytics-service:
+      url: ${ANALYTICS_SERVICE_URL:http://analytics-service:8088}

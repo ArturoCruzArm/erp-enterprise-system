@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: erp-system
+  labels:
+    name: erp-system
+    app.kubernetes.io/name: erp-system
+    app.kubernetes.io/instance: production

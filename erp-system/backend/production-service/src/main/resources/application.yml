@@ -1,0 +1,124 @@
+server:
+  port: 8087
+
+spring:
+  application:
+    name: production-service
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/erp_production
+    username: erp_user
+    password: erp_password
+    driver-class-name: org.postgresql.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: false
+  
+  redis:
+    host: localhost
+    port: 6379
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+  
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: production-service-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+  
+  quartz:
+    job-store-type: jdbc
+    properties:
+      org:
+        quartz:
+          scheduler:
+            instanceId: AUTO
+          jobStore:
+            class: org.quartz.impl.jdbcjobstore.JobStoreTX
+            driverDelegateClass: org.quartz.impl.jdbcjobstore.PostgreSQLDelegate
+            useProperties: false
+            tablePrefix: QRTZ_
+            isClustered: true
+            clusterCheckinInterval: 20000
+  
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8081
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Production Service Specific Configuration
+production:
+  planning:
+    lead-time-buffer-days: 2
+    capacity-utilization-threshold: 0.85
+    auto-schedule-enabled: true
+  
+  quality:
+    default-inspection-percentage: 10.0
+    defect-threshold-percentage: 2.0
+  
+  notifications:
+    production-start: true
+    production-complete: true
+    quality-issues: true
+    material-shortage: true
+  
+  real-time:
+    update-interval-seconds: 30
+    dashboard-refresh-seconds: 10
+
+# External Service Integration
+external-services:
+  inventory-service:
+    url: http://inventory-service:8083
+  purchase-service:
+    url: http://purchase-service:8084
+  sales-service:
+    url: http://sales-service:8085
+
+logging:
+  level:
+    com.erp.system.production: DEBUG
+    org.springframework.security: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

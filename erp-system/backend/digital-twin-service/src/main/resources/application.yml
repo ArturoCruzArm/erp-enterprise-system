@@ -1,0 +1,382 @@
+# Digital Twin Service Configuration
+server:
+  port: 8095
+  servlet:
+    context-path: /api/v1
+
+spring:
+  application:
+    name: digital-twin-service
+  
+  # Database Configuration
+  datasource:
+    url: jdbc:postgresql://localhost:5432/erp_digital_twin_db
+    username: ${DB_USERNAME:erp_user}
+    password: ${DB_PASSWORD:erp_password}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      maximum-pool-size: 25
+      minimum-idle: 5
+      pool-name: DigitalTwinHikariCP
+  
+  # JPA Configuration
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 25
+          order_inserts: true
+          order_updates: true
+        cache:
+          use_second_level_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+  
+  # Neo4j Configuration (for Graph Database)
+  neo4j:
+    uri: ${NEO4J_URI:bolt://localhost:7687}
+    authentication:
+      username: ${NEO4J_USERNAME:neo4j}
+      password: ${NEO4J_PASSWORD:neo4j}
+    pool:
+      max-connection-pool-size: 20
+      connection-acquisition-timeout: 30s
+  
+  # Redis Configuration
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    timeout: 2000ms
+    jedis:
+      pool:
+        max-active: 25
+        max-idle: 10
+        min-idle: 2
+        max-wait: 2000ms
+  
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      batch-size: 16384
+      linger-ms: 5
+      buffer-memory: 33554432
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      group-id: digital-twin-service
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      properties:
+        spring.json.trusted.packages: "com.erp.system.digitaltwin.entity,com.erp.system.digitaltwin.dto"
+    streams:
+      application-id: digital-twin-streams
+      bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+      properties:
+        processing.guarantee: exactly_once_v2
+        topology.optimization: all
+  
+  # Security Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI:http://localhost:8081/auth/realms/erp}
+          jwk-set-uri: ${JWT_JWK_SET_URI:http://localhost:8081/auth/realms/erp/protocol/openid-connect/certs}
+
+# Eureka Configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+
+# Management and Monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+  tracing:
+    sampling:
+      probability: 1.0
+
+# InfluxDB Configuration (Time Series Database)
+influxdb:
+  url: ${INFLUXDB_URL:http://localhost:8086}
+  token: ${INFLUXDB_TOKEN:}
+  org: ${INFLUXDB_ORG:erp-organization}
+  bucket: ${INFLUXDB_BUCKET:digital-twin-data}
+  retention: 90d
+
+# Apache Spark Configuration
+spark:
+  app-name: digital-twin-analytics
+  master: ${SPARK_MASTER:local[*]}
+  sql:
+    warehouse:
+      dir: ${SPARK_WAREHOUSE_DIR:/tmp/spark-warehouse}
+  serializer: org.apache.spark.serializer.KryoSerializer
+  driver:
+    memory: 2g
+    max-result-size: 1g
+  executor:
+    memory: 2g
+    cores: 2
+
+# Digital Twin Configuration
+digital-twin:
+  # Model Management
+  models:
+    storage:
+      base-path: ${MODEL_STORAGE_PATH:/var/lib/erp/models}
+      supported-formats: [GLTF, OBJ, FBX, DAE, STL, PLY]
+      max-file-size: 100MB
+      compression-enabled: true
+    
+    validation:
+      enabled: true
+      check-geometry: true
+      check-materials: true
+      check-animations: true
+  
+  # Synchronization
+  synchronization:
+    enabled: true
+    default-frequency: 60s
+    max-frequency: 5s
+    min-frequency: 300s
+    timeout: 30s
+    retry-attempts: 3
+    
+    data-sources:
+      - type: mqtt
+        enabled: true
+        broker: ${MQTT_BROKER:tcp://localhost:1883}
+      - type: opcua
+        enabled: true
+        endpoint: ${OPCUA_ENDPOINT:opc.tcp://localhost:4840}
+      - type: rest
+        enabled: true
+        timeout: 10s
+      - type: database
+        enabled: true
+        batch-size: 1000
+  
+  # Physics Engine
+  physics:
+    enabled: true
+    engine: bullet # bullet, ode, or simple
+    gravity: -9.81
+    time-step: 0.016 # 60 FPS
+    max-sub-steps: 10
+    collision-detection: true
+    
+    performance:
+      broadphase: dbvt # dbvt, sap, or simple
+      solver-iterations: 10
+      constraint-solver: sequential-impulse
+  
+  # Simulation
+  simulation:
+    enabled: true
+    max-concurrent-simulations: 5
+    default-duration: 3600s # 1 hour
+    max-duration: 86400s # 24 hours
+    
+    engines:
+      - name: performance
+        type: mathematical
+        enabled: true
+      - name: physics
+        type: physics
+        enabled: true
+      - name: thermal
+        type: thermal
+        enabled: true
+      - name: fluid
+        type: cfd
+        enabled: false # Requires additional licensing
+    
+    optimization:
+      enabled: true
+      algorithms: [genetic, simulated-annealing, particle-swarm]
+      max-iterations: 1000
+      convergence-threshold: 0.001
+  
+  # Analytics and ML
+  analytics:
+    enabled: true
+    
+    anomaly-detection:
+      enabled: true
+      algorithm: isolation-forest
+      threshold: 0.8
+      window-size: 1000
+      retrain-interval: 24h
+    
+    predictive-maintenance:
+      enabled: true
+      horizon: 30d
+      algorithms: [random-forest, lstm, arima]
+      min-training-samples: 1000
+      retrain-interval: 168h
+    
+    performance-optimization:
+      enabled: true
+      optimization-targets: [efficiency, cost, quality, sustainability]
+      multi-objective: true
+      pareto-optimal: true
+    
+    digital-twin-intelligence:
+      enabled: true
+      self-learning: true
+      adaptive-parameters: true
+      knowledge-graph: true
+  
+  # Visualization and Rendering
+  visualization:
+    enabled: true
+    
+    rendering:
+      engine: webgl # webgl, three.js, babylon.js
+      quality: high # low, medium, high, ultra
+      anti-aliasing: true
+      shadows: true
+      reflections: true
+      ambient-occlusion: true
+    
+    real-time:
+      enabled: true
+      max-fps: 60
+      adaptive-quality: true
+      lod-enabled: true # Level of Detail
+    
+    vr-ar:
+      enabled: true
+      vr-support: true
+      ar-support: true
+      oculus-support: true
+      hololens-support: true
+  
+  # Data Management
+  data:
+    retention:
+      raw-sensor-data: 90d
+      processed-data: 365d
+      simulation-results: 180d
+      model-versions: 10
+      analytics-cache: 7d
+    
+    compression:
+      enabled: true
+      algorithm: lz4 # lz4, gzip, snappy
+      level: 3
+    
+    archival:
+      enabled: true
+      archive-after: 365d
+      storage-class: cold
+      compression-ratio: 0.3
+  
+  # Performance and Scalability
+  performance:
+    caching:
+      twin-metadata-ttl: 30m
+      simulation-results-ttl: 2h
+      analytics-ttl: 15m
+      model-cache-size: 1GB
+    
+    threading:
+      simulation-threads: 4
+      analytics-threads: 2
+      synchronization-threads: 8
+      rendering-threads: 2
+    
+    memory:
+      max-heap-size: 4GB
+      model-cache-ratio: 0.3
+      simulation-cache-ratio: 0.2
+      analytics-cache-ratio: 0.1
+    
+    clustering:
+      enabled: false
+      nodes: 1
+      load-balancing: round-robin
+      failover: automatic
+
+# Integration Configuration
+integration:
+  edge-computing-service:
+    url: ${EDGE_SERVICE_URL:http://edge-computing-service:8094}
+    timeout: 30s
+  
+  production-service:
+    url: ${PRODUCTION_SERVICE_URL:http://production-service:8087}
+    timeout: 30s
+  
+  inventory-service:
+    url: ${INVENTORY_SERVICE_URL:http://inventory-service:8083}
+    timeout: 30s
+  
+  analytics-service:
+    url: ${ANALYTICS_SERVICE_URL:http://analytics-service:8088}
+    timeout: 30s
+
+# Logging Configuration
+logging:
+  level:
+    com.erp.system.digitaltwin: DEBUG
+    org.springframework.kafka: INFO
+    org.neo4j: INFO
+    org.apache.spark: WARN
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{correlationId}] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{correlationId}] %logger{36} - %msg%n"
+  file:
+    name: logs/digital-twin-service.log
+    max-size: 100MB
+    max-history: 30
+
+# Custom Properties
+app:
+  security:
+    jwt:
+      secret: ${JWT_SECRET:mySecretKey}
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001}
+  
+  notification:
+    webhook:
+      enabled: true
+      url: ${WEBHOOK_URL:http://localhost:8092/webhooks/twin-alerts}

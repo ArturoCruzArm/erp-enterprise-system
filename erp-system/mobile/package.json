@@ -1,0 +1,193 @@
+{
+  "name": "ERPMobile",
+  "version": "1.0.0",
+  "main": "expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "build:android": "eas build --platform android",
+    "build:ios": "eas build --platform ios",
+    "submit:android": "eas submit --platform android",
+    "submit:ios": "eas submit --platform ios",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "expo": "~49.0.0",
+    "expo-status-bar": "~1.6.0",
+    "expo-constants": "~14.4.2",
+    "expo-linking": "~5.0.2",
+    "expo-router": "^2.0.0",
+    "expo-splash-screen": "~0.20.5",
+    "expo-system-ui": "~2.4.0",
+    "expo-web-browser": "~12.3.2",
+    
+    "react": "18.2.0",
+    "react-native": "0.72.6",
+    "react-native-safe-area-context": "4.6.3",
+    "react-native-screens": "~3.22.0",
+    
+    "@react-navigation/native": "^6.1.9",
+    "@react-navigation/stack": "^6.3.20",
+    "@react-navigation/bottom-tabs": "^6.5.11",
+    "@react-navigation/drawer": "^6.6.6",
+    
+    "@apollo/client": "^3.8.8",
+    "graphql": "^16.8.1",
+    "@apollo/react-hooks": "^4.0.0",
+    
+    "react-native-vector-icons": "^10.0.2",
+    "@expo/vector-icons": "^13.0.0",
+    "react-native-elements": "^3.4.3",
+    "react-native-paper": "^5.11.6",
+    
+    "react-native-gesture-handler": "~2.12.0",
+    "react-native-reanimated": "~3.3.0",
+    
+    "@react-native-async-storage/async-storage": "1.18.2",
+    "react-native-keychain": "^8.1.3",
+    "expo-secure-store": "~12.3.1",
+    
+    "react-native-camera": "^4.2.1",
+    "expo-camera": "~13.4.4",
+    "expo-barcode-scanner": "~12.5.3",
+    "react-native-qrcode-scanner": "^1.5.5",
+    
+    "react-native-chart-kit": "^6.12.0",
+    "react-native-svg": "13.9.0",
+    "victory-native": "^36.6.11",
+    
+    "react-native-maps": "1.7.1",
+    "expo-location": "~16.1.0",
+    
+    "react-native-image-picker": "^7.0.3",
+    "expo-image-picker": "~14.3.2",
+    "expo-document-picker": "~11.5.4",
+    
+    "react-native-push-notification": "^8.1.1",
+    "expo-notifications": "~0.20.1",
+    
+    "react-hook-form": "^7.48.2",
+    "react-native-hook-form": "^1.0.0",
+    "yup": "^1.4.0",
+    
+    "react-native-date-picker": "^4.3.3",
+    "react-native-modal-datetime-picker": "^17.1.0",
+    
+    "react-native-webview": "13.2.2",
+    "react-native-pdf": "^6.7.3",
+    
+    "react-native-socket.io-client": "^2.0.2",
+    "socket.io-client": "^4.7.4",
+    
+    "react-native-device-info": "^10.11.0",
+    "react-native-network-info": "^5.2.1",
+    
+    "react-native-biometrics": "^3.0.1",
+    "expo-local-authentication": "~13.4.1",
+    
+    "react-native-offline": "^6.0.2",
+    "react-native-netinfo": "9.3.10",
+    
+    "react-native-sqlite-storage": "^6.0.1",
+    "expo-sqlite": "~11.3.3",
+    
+    "react-query": "^3.39.3",
+    "zustand": "^4.4.7",
+    
+    "i18next": "^23.7.6",
+    "react-i18next": "^13.5.0",
+    "i18next-browser-languagedetector": "^7.2.0",
+    
+    "react-native-super-grid": "^4.9.6",
+    "react-native-snap-carousel": "^3.9.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0",
+    "@babel/preset-env": "^7.20.0",
+    "@babel/runtime": "^7.20.0",
+    "@react-native/eslint-config": "^0.72.2",
+    "@react-native/metro-config": "^0.72.11",
+    "@tsconfig/react-native": "^3.0.0",
+    "@types/react": "~18.2.14",
+    "@types/react-test-renderer": "^18.0.0",
+    "jest": "^29.2.1",
+    "metro-react-native-babel-preset": "0.76.8",
+    "prettier": "^2.4.1",
+    "react-test-renderer": "18.2.0",
+    "typescript": "^5.1.3",
+    "@types/react-native": "^0.72.6",
+    "eslint": "^8.19.0",
+    "@typescript-eslint/eslint-plugin": "^6.7.0",
+    "@typescript-eslint/parser": "^6.7.0"
+  },
+  "private": true,
+  "expo": {
+    "name": "ERP Mobile",
+    "slug": "erp-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.company.erpmobile",
+      "buildNumber": "1.0.0"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "package": "com.company.erpmobile",
+      "versionCode": 1,
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "VIBRATE",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow ERP Mobile to access your camera to scan barcodes and take photos."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow ERP Mobile to use your location for delivery tracking."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#ffffff"
+        }
+      ]
+    ]
+  }
+}
