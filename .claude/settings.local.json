@@ -26,7 +26,8 @@
       "Bash(rm:*)",
       "Bash(./scripts/deploy-enterprise-erp.sh:*)",
       "Bash(taskkill:*)",
-      "Bash(del:*)"
+      "Bash(del:*)",
+      "Bash(java:*)"
     ],
     "deny": []
   }

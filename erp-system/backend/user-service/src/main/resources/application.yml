@@ -1,14 +1,14 @@
 server:
-  port: 8081
+  port: 8101
 
 spring:
   application:
     name: user-service
   
   datasource:
-    url: jdbc:postgresql://localhost:5432/erp_users
-    username: user_service
-    password: user_password
+    url: jdbc:postgresql://localhost:5432/erp_main
+    username: erp_user
+    password: erp_password
     driver-class-name: org.postgresql.Driver
   
   jpa:
