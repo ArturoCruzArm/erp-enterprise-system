@@ -1,0 +1,293 @@
+# OpenTelemetry Collector Configuration for ERP System
+
+receivers:
+  # OTLP receiver for traces, metrics, and logs
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins:
+            - "http://localhost:3000"
+            - "https://erp.company.com"
+          allowed_headers:
+            - "*"
+
+  # Jaeger receiver (legacy support)
+  jaeger:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:14250
+      thrift_http:
+        endpoint: 0.0.0.0:14268
+      thrift_compact:
+        endpoint: 0.0.0.0:6831
+
+  # Zipkin receiver
+  zipkin:
+    endpoint: 0.0.0.0:9411
+
+  # Prometheus metrics receiver
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: 'erp-services'
+          static_configs:
+            - targets: 
+              - 'eureka-server:8761'
+              - 'api-gateway:8080'
+              - 'user-service:8081'
+              - 'finance-service:8082'
+              - 'inventory-service:8083'
+          metrics_path: '/actuator/prometheus'
+          scrape_interval: 15s
+
+        - job_name: 'infrastructure'
+          static_configs:
+            - targets:
+              - 'postgres:5432'
+              - 'redis:6379'
+              - 'elasticsearch:9200'
+              - 'kafka:9092'
+          scrape_interval: 30s
+
+  # Host metrics
+  hostmetrics:
+    collection_interval: 30s
+    scrapers:
+      cpu:
+        metrics:
+          system.cpu.utilization:
+            enabled: true
+      memory:
+        metrics:
+          system.memory.utilization:
+            enabled: true
+      disk:
+        metrics:
+          system.disk.io:
+            enabled: true
+          system.disk.operations:
+            enabled: true
+      network:
+        metrics:
+          system.network.io:
+            enabled: true
+      process:
+        mute_process_name_error: true
+        mute_process_exe_error: true
+        mute_process_io_error: true
+
+  # Docker stats
+  docker_stats:
+    endpoint: unix:///var/run/docker.sock
+    collection_interval: 30s
+    timeout: 20s
+    api_version: 1.40
+
+  # Kafka metrics
+  kafkametrics:
+    brokers: kafka:9092
+    protocol_version: 2.6.0
+    collection_interval: 30s
+    scrapers:
+      - brokers
+      - topics
+      - consumers
+
+processors:
+  # Batch processor for performance
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+
+  # Memory limiter to prevent OOM
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 512
+    spike_limit_mib: 128
+
+  # Resource processor to add service information
+  resource:
+    attributes:
+      - action: insert
+        key: service.namespace
+        value: "erp-system"
+      - action: insert
+        key: service.version
+        value: "1.0.0"
+      - action: insert
+        key: deployment.environment
+        value: "production"
+
+  # Span processor for trace enhancement
+  span:
+    name:
+      to_attributes:
+        rules:
+          - ^\/api\/(?P<version>v\d+)\/(?P<resource>[^\/]+).*$
+      from_attributes:
+        - http.method
+        - http.route
+
+  # Attributes processor
+  attributes:
+    actions:
+      - action: insert
+        key: environment
+        value: production
+      - action: update
+        key: http.user_agent
+        from_attribute: User-Agent
+      - action: delete
+        key: http.request.header.authorization
+
+  # Tail sampling processor
+  tail_sampling:
+    decision_wait: 10s
+    num_traces: 50000
+    expected_new_traces_per_sec: 100
+    policies:
+      # Always sample errors
+      - name: errors
+        type: status_code
+        status_code:
+          status_codes: [ERROR]
+      
+      # Sample slow requests
+      - name: slow_requests
+        type: latency
+        latency:
+          threshold_ms: 1000
+      
+      # Probabilistic sampling for normal requests
+      - name: probabilistic
+        type: probabilistic
+        probabilistic:
+          sampling_percentage: 10
+
+  # K8s attributes (if running on Kubernetes)
+  k8sattributes:
+    auth_type: "serviceAccount"
+    passthrough: false
+    filter:
+      node_from_env_var: KUBE_NODE_NAME
+    extract:
+      metadata:
+        - k8s.pod.name
+        - k8s.pod.uid
+        - k8s.deployment.name
+        - k8s.namespace.name
+        - k8s.node.name
+        - k8s.pod.start_time
+      labels:
+        - tag_name: service.name
+          key: app.kubernetes.io/name
+          from: pod
+        - tag_name: service.version
+          key: app.kubernetes.io/version
+          from: pod
+
+exporters:
+  # Jaeger exporter
+  jaeger:
+    endpoint: jaeger:14250
+    tls:
+      insecure: true
+
+  # Prometheus exporter
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    namespace: erp
+    const_labels:
+      environment: production
+
+  # OTLP exporter to external services
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+
+  # Elasticsearch exporter for logs
+  elasticsearch:
+    endpoints: ["http://elasticsearch:9200"]
+    index: "otel-logs"
+    mapping:
+      mode: raw
+    timeout: 30s
+
+  # Kafka exporter for streaming telemetry
+  kafka:
+    brokers: ["kafka:9092"]
+    topic: "otel-telemetry"
+    protocol_version: 2.6.0
+    encoding: otlp_proto
+
+  # File exporter for debugging
+  file:
+    path: /tmp/otel-output.json
+
+  # Logging exporter for debugging
+  logging:
+    loglevel: info
+
+  # OTLP HTTP exporter
+  otlphttp:
+    endpoint: "http://tempo:4318"
+    headers:
+      X-Scope-OrgID: "erp-system"
+
+extensions:
+  # Health check extension
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+  # Performance profiler
+  pprof:
+    endpoint: 0.0.0.0:1777
+
+  # zPages extension for debugging
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+  # Memory ballast
+  memory_ballast:
+    size_mib: 64
+
+service:
+  extensions: [health_check, pprof, zpages, memory_ballast]
+  
+  pipelines:
+    # Traces pipeline
+    traces:
+      receivers: [otlp, jaeger, zipkin]
+      processors: [memory_limiter, resource, span, attributes, tail_sampling, batch]
+      exporters: [jaeger, otlp/jaeger, logging]
+
+    # Metrics pipeline
+    metrics:
+      receivers: [otlp, prometheus, hostmetrics, docker_stats, kafkametrics]
+      processors: [memory_limiter, resource, attributes, batch]
+      exporters: [prometheus, logging]
+
+    # Logs pipeline
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, attributes, batch]
+      exporters: [elasticsearch, logging]
+
+  # Telemetry configuration
+  telemetry:
+    logs:
+      level: info
+      development: false
+      sampling:
+        initial: 5
+        thereafter: 200
+      encoding: json
+    metrics:
+      level: detailed
+      address: 0.0.0.0:8888

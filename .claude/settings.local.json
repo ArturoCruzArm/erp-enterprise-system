@@ -20,7 +20,13 @@
       "Bash(mvn clean:*)",
       "Bash(start:*)",
       "Bash(mvn package:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(powershell:*)",
+      "Bash(mv:*)",
+      "Bash(rm:*)",
+      "Bash(./scripts/deploy-enterprise-erp.sh:*)",
+      "Bash(taskkill:*)",
+      "Bash(del:*)"
     ],
     "deny": []
   }

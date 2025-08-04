@@ -1,0 +1,382 @@
+# Chaos Monkey Configuration for ERP System
+# This configuration defines chaos experiments to test system resilience
+
+chaos:
+  monkey:
+    enabled: true
+    
+    # Global settings
+    settings:
+      # Time zone for scheduling
+      timezone: "UTC"
+      
+      # Dry run mode - set to false to actually perform chaos actions
+      dry_run: false
+      
+      # Notification settings
+      notifications:
+        enabled: true
+        slack:
+          webhook_url: "${SLACK_WEBHOOK_URL}"
+          channel: "#erp-alerts"
+        email:
+          enabled: true
+          recipients: ["devops@company.com", "sre@company.com"]
+    
+    # Scheduling configuration
+    schedule:
+      enabled: true
+      # Only run chaos experiments during business hours
+      timezone: "UTC"
+      exclude_weekends: true
+      exclude_holidays: true
+    
+    # Target configuration
+    targets:
+      # Spring Boot applications
+      spring_boot:
+        enabled: true
+        # Target specific services
+        include:
+          - "user-service"
+          - "finance-service"
+          - "inventory-service"
+          - "api-gateway"
+        exclude:
+          - "eureka-server"  # Don't kill service discovery
+      
+      # Docker containers
+      docker:
+        enabled: true
+        include:
+          - "erp-*"
+        exclude:
+          - "erp-postgres"
+          - "erp-redis"
+    
+    # Chaos experiments configuration
+    experiments:
+      
+      # Application-level attacks
+      application:
+        
+        # Kill random application instances
+        app_killer:
+          enabled: true
+          probability: 0.1  # 10% chance per check
+          schedule:
+            - "0 9-17 * * MON-FRI"  # Business hours only
+          targets:
+            - "user-service"
+            - "finance-service"
+            - "inventory-service"
+          
+        # Introduce latency
+        latency_attack:
+          enabled: true
+          probability: 0.05
+          duration: "PT5M"  # 5 minutes
+          latency_ms: 2000
+          schedule:
+            - "0 9-17 * * MON-FRI"
+        
+        # Memory pressure
+        memory_attack:
+          enabled: true
+          probability: 0.03
+          duration: "PT10M"
+          memory_fill_fraction: 0.8
+          
+        # CPU stress
+        cpu_attack:
+          enabled: true
+          probability: 0.03
+          duration: "PT5M"
+          cpu_load_fraction: 0.9
+        
+        # Exception throwing
+        exception_attack:
+          enabled: true
+          probability: 0.02
+          exceptions:
+            - "java.lang.RuntimeException"
+            - "java.io.IOException"
+            - "java.sql.SQLException"
+          endpoints:
+            - "/api/users/**"
+            - "/api/finance/**"
+            - "/api/inventory/**"
+      
+      # Infrastructure-level attacks
+      infrastructure:
+        
+        # Network partition
+        network_partition:
+          enabled: true
+          probability: 0.02
+          duration: "PT3M"
+          targets:
+            - service: "finance-service"
+              isolate_from: ["postgres", "redis"]
+        
+        # DNS chaos
+        dns_chaos:
+          enabled: true
+          probability: 0.01
+          duration: "PT2M"
+          dns_errors:
+            - "NXDOMAIN"
+            - "TIMEOUT"
+        
+        # Disk I/O stress
+        io_stress:
+          enabled: true
+          probability: 0.02
+          duration: "PT5M"
+          io_operations_per_second: 1000
+        
+        # Container restart
+        container_restart:
+          enabled: true
+          probability: 0.05
+          containers:
+            - "erp-user-service"
+            - "erp-finance-service"
+            - "erp-inventory-service"
+      
+      # Database chaos
+      database:
+        
+        # Connection pool exhaustion
+        connection_pool_exhaustion:
+          enabled: true
+          probability: 0.01
+          duration: "PT2M"
+        
+        # Slow queries
+        slow_query_injection:
+          enabled: true
+          probability: 0.02
+          delay_ms: 5000
+          duration: "PT3M"
+        
+        # Transaction rollback
+        transaction_rollback:
+          enabled: true
+          probability: 0.01
+          percentage: 10  # 10% of transactions
+      
+      # Message queue chaos
+      messaging:
+        
+        # Kafka partition unavailability
+        kafka_partition_chaos:
+          enabled: true
+          probability: 0.02
+          duration: "PT5M"
+          topics:
+            - "erp.user.events"
+            - "erp.finance.events"
+        
+        # Message delay
+        message_delay:
+          enabled: true
+          probability: 0.03
+          delay_ms: 10000
+          duration: "PT5M"
+        
+        # Message loss
+        message_loss:
+          enabled: true
+          probability: 0.01
+          loss_percentage: 5
+          duration: "PT2M"
+    
+    # Monitoring and observability
+    observability:
+      
+      # Metrics collection
+      metrics:
+        enabled: true
+        prometheus:
+          enabled: true
+          port: 8080
+          path: "/actuator/prometheus"
+        
+        # Custom metrics
+        custom_metrics:
+          - name: "chaos_experiments_total"
+            description: "Total number of chaos experiments executed"
+            type: "counter"
+          
+          - name: "chaos_experiment_duration_seconds"
+            description: "Duration of chaos experiments"
+            type: "histogram"
+          
+          - name: "system_recovery_time_seconds"
+            description: "Time taken for system to recover after chaos"
+            type: "histogram"
+      
+      # Health checks during chaos
+      health_checks:
+        enabled: true
+        endpoints:
+          - url: "http://api-gateway:8080/actuator/health"
+            name: "api-gateway"
+            expected_status: 200
+          
+          - url: "http://user-service:8081/actuator/health"
+            name: "user-service"
+            expected_status: 200
+          
+          - url: "http://finance-service:8082/actuator/health"
+            name: "finance-service"
+            expected_status: 200
+        
+        # Automatically stop chaos if too many services are unhealthy
+        circuit_breaker:
+          enabled: true
+          failure_threshold: 2  # Stop if 2 or more services are down
+          check_interval: 30    # Check every 30 seconds
+      
+      # Logging
+      logging:
+        enabled: true
+        level: "INFO"
+        format: "json"
+        destinations:
+          - type: "elasticsearch"
+            endpoint: "http://elasticsearch:9200"
+            index: "chaos-monkey-logs"
+          
+          - type: "file"
+            path: "/var/log/chaos-monkey/chaos-monkey.log"
+            max_size: "100MB"
+            max_files: 10
+    
+    # Experiment profiles for different environments
+    profiles:
+      
+      # Development environment - more aggressive chaos
+      development:
+        experiments:
+          application:
+            app_killer:
+              probability: 0.2
+            latency_attack:
+              probability: 0.1
+        
+        schedule:
+          exclude_weekends: false
+          exclude_holidays: false
+      
+      # Staging environment - moderate chaos
+      staging:
+        experiments:
+          application:
+            app_killer:
+              probability: 0.15
+          infrastructure:
+            network_partition:
+              probability: 0.05
+        
+        notifications:
+          slack:
+            channel: "#erp-staging-alerts"
+      
+      # Production environment - conservative chaos
+      production:
+        experiments:
+          application:
+            app_killer:
+              probability: 0.05
+              schedule:
+                - "0 14-16 * * TUE,THU"  # Only Tuesday and Thursday afternoons
+        
+        observability:
+          health_checks:
+            circuit_breaker:
+              failure_threshold: 1  # More conservative in production
+        
+        notifications:
+          email:
+            recipients: ["sre@company.com", "cto@company.com"]
+
+# Chaos experiment scenarios
+scenarios:
+  
+  # Black Friday simulation
+  black_friday:
+    description: "Simulate high load during Black Friday"
+    experiments:
+      - name: "high_traffic_simulation"
+        type: "load_generator"
+        duration: "PT30M"
+        requests_per_second: 1000
+      
+      - name: "database_connection_limit"
+        type: "database_chaos"
+        duration: "PT15M"
+        max_connections: 50
+      
+      - name: "cache_invalidation"
+        type: "cache_chaos"
+        duration: "PT10M"
+        invalidation_rate: 0.5
+  
+  # Data center outage simulation
+  datacenter_outage:
+    description: "Simulate partial datacenter outage"
+    experiments:
+      - name: "zone_failure"
+        type: "infrastructure"
+        duration: "PT20M"
+        affected_services: ["user-service", "finance-service"]
+      
+      - name: "cross_region_traffic"
+        type: "network_chaos"
+        duration: "PT20M"
+        latency_increase: 200  # Additional 200ms latency
+  
+  # Security incident simulation
+  security_incident:
+    description: "Simulate security-related disruptions"
+    experiments:
+      - name: "auth_service_degradation"
+        type: "application_chaos"
+        target: "auth-service"
+        duration: "PT10M"
+        degradation_type: "slow_response"
+      
+      - name: "elevated_error_rates"
+        type: "application_chaos"
+        duration: "PT15M"
+        error_rate: 0.1  # 10% error rate
+
+# Chaos engineering best practices embedded in config
+best_practices:
+  
+  # Start small and gradually increase chaos
+  gradual_increase:
+    enabled: true
+    initial_probability: 0.01
+    increase_factor: 1.5
+    max_probability: 0.1
+  
+  # Blast radius control
+  blast_radius:
+    max_affected_services: 2
+    max_affected_instances_per_service: 1
+  
+  # Automated rollback
+  rollback:
+    enabled: true
+    triggers:
+      - condition: "error_rate > 0.1"
+        action: "stop_all_experiments"
+      
+      - condition: "response_time_p99 > 5000ms"
+        action: "stop_latency_experiments"
+      
+      - condition: "available_services < 3"
+        action: "emergency_stop"
